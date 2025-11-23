@@ -4,8 +4,14 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from io import BytesIO
 
-st.set_page_config(page_title="Urban Housing — Historical & Forecast", layout="wide")
+st.set_page_config(page_title="Urban Housing — Historical & Forecast", 
+                   page_icon="favicon.png",
+                   layout="wide"
+                   )
 
 # -------------------------
 # Config / Theme variables
@@ -77,6 +83,11 @@ if avg_types_df is not None:
 if forecast_df is not None:
     forecast_df = ensure_year_int(forecast_df, 'Year')
 
+    # --- FIX STATE NAME VARIATIONS HERE ---
+    forecast_df["State"] = forecast_df["State"].replace({
+        "Pulau Pinang": "Penang"
+    })
+    
 # -------------------------
 # Sidebar - downloads & navigation
 # -------------------------
@@ -87,6 +98,38 @@ for p in [cleaned_path, avg_price_path, avg_types_path, forecast_path]:
         st.sidebar.download_button(label=f"Download {Path(p).name}", data=Path(p).read_bytes(), file_name=Path(p).name)
 
 page = st.sidebar.radio("Navigate", ["Overview — Historical", "Forecast (2025-2029)", "About / Notes"])
+
+# New Function: Generate PDF report for forecast
+def generate_forecast_pdf(selected_states, year_range, summary_df):
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # Title
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, height - 50, "Malaysia Housing Price Forecast Report")
+
+    # Subtitle
+    c.setFont("Helvetica", 12)
+    c.drawString(50, height - 80, f"States Selected: {', '.join(selected_states)}")
+    c.drawString(50, height - 100, f"Years: {year_range[0]} - {year_range[1]}")
+
+    # Summary section
+    c.drawString(50, height - 140, "Forecast Summary (Average Price by State):")
+
+    y = height - 160
+    for _, row in summary_df.iterrows():
+        text = f"{row['State']}: RM {row['AveragePrice']:.2f}"
+        c.drawString(60, y, text)
+        y -= 20
+
+    # Footer
+    c.setFont("Helvetica-Oblique", 9)
+    c.drawString(50, 40, "Generated via Malaysia Housing Forecast Dashboard — © 2025 Denise Choo")
+
+    c.save()
+    buffer.seek(0)
+    return buffer
 
 # -------------------------
 # Page: Overview — Historical
@@ -299,10 +342,27 @@ elif page == "Forecast (2025-2029)":
                             template=PLOTLY_TEMPLATE
                         )
                         st.plotly_chart(fig_htf, use_container_width=True)
+                        # ---- PDF REPORT GENERATION ----
+                        st.markdown("### Download Forecast Report (PDF)")
+                        # Build summary table
+                        summary_df = (
+                            plot_df.groupby("State", as_index=False)["AveragePrice"]
+                                .mean()
+                        )
+                        pdf_buffer = generate_forecast_pdf(sel_states, year_range, summary_df)
+                        st.download_button(
+                            label="📄 Download PDF Report",
+                            data=pdf_buffer,
+                            file_name="housing_forecast_report.pdf",
+                            mime="application/pdf"
+                        )
+
                     else:
                         st.info("House type forecasts not available in forecast file.")
         else:
             st.error("Forecast file lacks required columns ('Year','State','Predicted_House_Price').")
+
+
 
 # -------------------------
 # Page: About / Notes
@@ -324,3 +384,16 @@ else:
     st.markdown("Contact & Links")
     st.write("- Portfolio:", "https://denisechoo80.wixsite.com/portfolio")
     st.write("- GitHub:", "https://github.com/siteByteside")
+
+# ---- FOOTER ----
+footer_html = """
+    <hr style="margin-top: 50px;">
+    <div style="text-align: center; padding-top: 10px;">
+        <span style="font-size: 14px; color: gray;">
+            Developed by Denise Choo © 2025<br>
+            Malaysia Housing Forecast Dashboard
+        </span>
+    </div>
+"""
+
+st.markdown(footer_html, unsafe_allow_html=True)

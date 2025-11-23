@@ -4,3 +4,4 @@ plotly
 numpy
 pathlib
 scikit-learn
+reportlab
