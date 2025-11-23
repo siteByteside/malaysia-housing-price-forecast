@@ -54,6 +54,21 @@ def ensure_year_int(df, col='Year'):
             pass
     return df
 
+# ---- INSIGHTS UI COMPONENT ----
+def insights_box(title, items):
+    st.markdown(f"### 🔍 {title}")
+
+    html = """
+    <div style='padding: 12px; border: 1px solid #444; border-radius: 8px; margin-bottom: 20px;'>
+    <ul>
+    """
+    for item in items:
+        html += f"<li>{item}</li>"
+
+    html += "</ul></div>"
+
+    st.markdown(html, unsafe_allow_html=True)
+
 # -------------------------
 # Load data (adjust paths if needed)
 # -------------------------
@@ -184,6 +199,38 @@ if page == "Overview — Historical":
                                 template=PLOTLY_TEMPLATE)
             fig_state.update_traces(line=dict(width=3))
             st.plotly_chart(fig_state, use_container_width=True)
+            # ---- KEY INSIGHTS: HISTORICAL ----
+            hist_df = avg_state_df[avg_state_df["State"].isin(selected_states)]
+
+            insights = []
+
+            # CAGR helper
+            def cagr(start, end, years):
+                try:
+                    return ((end / start) ** (1 / years) - 1) * 100
+                except:
+                    return None
+            # 1. Growth insights (CAGR)
+            for state in selected_states:
+                df_s = hist_df[hist_df["State"] == state].sort_values("Year")
+                if len(df_s) > 1:
+                    start = df_s["AveragePrice"].iloc[0]
+                    end = df_s["AveragePrice"].iloc[-1]
+                    years = df_s["Year"].iloc[-1] - df_s["Year"].iloc[0]
+                    g = cagr(start, end, years)
+                    if g is not None:
+                        insights.append(f"{state}: {g:.2f}% annual growth (CAGR)")
+            # 2. Highest price in latest year
+            latest_year = hist_df["Year"].max()
+            df_latest = hist_df[hist_df["Year"] == latest_year]
+
+            # Only show "highest state" if multiple states are selected
+            if len(selected_states) > 1 and not df_latest.empty:
+                top_state = df_latest.loc[df_latest["AveragePrice"].idxmax()]["State"]
+                insights.append(f"{top_state} has the highest average price in {latest_year}")
+
+            # Render insights box
+            insights_box("Key Historical Insights", insights)
         else:
             st.info("State average price chart unavailable due to missing data.")
 
@@ -314,6 +361,33 @@ elif page == "Forecast (2025-2029)":
                         template=PLOTLY_TEMPLATE
                     )
                     st.plotly_chart(figf, use_container_width=True)
+                    # ---- KEY INSIGHTS: FORECAST ----
+                    f_df = plot_df  # already filtered by state + year
+
+                    insights_f = []
+
+                    # 1. Growth from first → last year
+                    for state in sel_states:
+                        df_s = f_df[f_df["State"] == state].sort_values("Year")
+                        if len(df_s) > 1:
+                            start = df_s["AveragePrice"].iloc[0]
+                            end = df_s["AveragePrice"].iloc[-1]
+                            growth = ((end - start) / start) * 100
+                            insights_f.append(f"{state}: projected {growth:.1f}% increase across selected years")
+
+                    # 2. Highest + lowest in end year
+                    end_year = f_df["Year"].max()
+                    df_end = f_df[f_df["Year"] == end_year]
+
+                    if len(sel_states) > 1 and not df_end.empty:
+                        highest = df_end.loc[df_end["AveragePrice"].idxmax()]["State"]
+                        lowest = df_end.loc[df_end["AveragePrice"].idxmin()]["State"]
+
+                        insights_f.append(f"Highest predicted average price in {end_year}: {highest}")
+                        insights_f.append(f"Lowest predicted average price in {end_year}: {lowest}")
+
+                    # Render insights panel
+                    insights_box("Key Forecast Insights", insights_f)
 
                     # -----------------------------
                     # HOUSE-TYPE FORECAST SECTION
@@ -370,24 +444,68 @@ elif page == "Forecast (2025-2029)":
 else:
     st.title("About this project")
     st.markdown("""
-**Project**: Predictive ML model (`rf_tuned_22`) for Malaysia urban housing prices — forecasting 2025–2029.  
-**Historical data**: 2015–2024 (government sources such as NAPIC, DOSM, BNM).  
-**Focus**: urban states — Kuala Lumpur, Johor, Selangor, Penang.  
-**Audience / stakeholders**: policymakers, urban housing planners, real-estate developers, researchers.
+### 🧠 **Model Overview**
+This dashboard is powered by a predictive machine learning model (`rf_tuned_22`) built using a **Random Forest Regressor**.
+The model was trained on **Malaysia urban housing data from 2015–2024**, focusing on Kuala Lumpur, Selangor, Johor, and Penang.
+It forecasts average house prices for **2025–2029**.
 
-**Important caveats**
-- Forecasts are strategic guidance, not precise transaction prices. External shocks (policy, macro, political) can change outcomes.
-- Retrain model whenever new official data is published (ideally annually).
-- Include uncertainty intervals for stakeholder use (future improvement).
-    """)
-    st.markdown("---")
-    st.markdown("Contact & Links")
-    st.write("- Portfolio:", "https://denisechoo80.wixsite.com/portfolio")
-    st.write("- GitHub:", "https://github.com/siteByteside")
+---
+### 🔑 **Key Features the Model Relies On**
+The model uses a range of property, location, and demographic features.
+Among all inputs, the **top 3 most influential features** (based on feature importance) are:
+
+
+1. **District** *(location signal — strongest predictor)*
+2. **House Type** *(terrace, condo, landed, etc.)*
+3. **Population** *(population scale & urban density patterns)*
+
+These three features together drive a significant portion of the model’s predictive power.
+
+
+---
+
+
+### ⚙️ **Model Training & Tuning**
+- **Training approach:** time-series based
+- Model trained on **≤ 2021 data**
+- Tested on **> 2021 data**
+- Ensures evaluation simulates real future forecasting, not random splits
+- **Tuning methods used:**
+- **Manual tuning**
+- **RandomizedSearchCV** for systematic hyperparameter exploration
+
+
+---
+                
+### 📏 **Model Performance**
+To evaluate accuracy, we measured prediction error on the test period (post-2021):
+
+
+- **MAE (Mean Absolute Error): ≈ 20%**
+- Predictions are on average within **±20%** of actual historical prices.
+
+---
+
+
+### ⚠️ **Limitations to be Aware Of**
+- Forecasts assume historical patterns continue without major shocks.
+- The model does not include policy changes, macroeconomic shifts, or major development projects.
+- Predictions are **state-level & house-type-level**, not district-level.
+- Uncertainty intervals not yet included (planned improvement).
+
+
+---
+                
+### 📱 **Contact & Links**
+- Portfolio: https://denisechoo80.wixsite.com/portfolio
+- GitHub: https://github.com/siteByteside
+""")
+
+
+st.markdown("---")
 
 # ---- FOOTER ----
 footer_html = """
-    <hr style="margin-top: 50px;">
     <div style="text-align: center; padding-top: 10px;">
         <span style="font-size: 14px; color: gray;">
             Developed by Denise Choo © 2025<br>
