@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import os
+import datetime
 from pathlib import Path
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -59,11 +61,19 @@ def insights_box(title, items):
     st.markdown(f"### 🔍 {title}")
 
     html = """
-    <div style='padding: 12px; border: 1px solid #444; border-radius: 8px; margin-bottom: 20px;'>
-    <ul>
+    <div style='
+        padding: 18px;
+        border: 1px solid #555;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        background-color: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 6px rgba(0,0,0,0.3);
+    '>
+        <ul style='margin-left: 20px;'>
     """
+
     for item in items:
-        html += f"<li>{item}</li>"
+        html += f"<li style='margin-bottom: 6px;'>{item}</li>"
 
     html += "</ul></div>"
 
@@ -77,6 +87,17 @@ cleaned_path = DATA_DIR / "historical_housing_2015_2024.csv"
 avg_price_path = DATA_DIR / "average_house_price(2015-2029).csv"
 avg_types_path = DATA_DIR / "average_house_types(2015-2029).csv"
 forecast_path = DATA_DIR / "forecasted_housing_2025_2029.csv"
+
+def file_last_updated(path):
+    if Path(path).exists():
+        ts = os.path.getmtime(path)
+        return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+    return "N/A"
+
+updated_cleaned = file_last_updated(cleaned_path)
+updated_price = file_last_updated(avg_price_path)
+updated_types = file_last_updated(avg_types_path)
+updated_forecast = file_last_updated(forecast_path)
 
 cleaned_df = standardize_cols(load_csv(cleaned_path))
 avg_price_df = standardize_cols(load_csv(avg_price_path))
@@ -106,8 +127,14 @@ if forecast_df is not None:
 # -------------------------
 # Sidebar - downloads & navigation
 # -------------------------
-st.sidebar.title("Housing FYP — Dashboard")
+st.sidebar.title("Final Year Project — Housing Dashboard")
 st.sidebar.markdown("Files available:")
+st.sidebar.markdown("**📅 Data Last Updated:**")
+st.sidebar.write(f"- Historical data: {updated_cleaned}")
+st.sidebar.write(f"- Average price: {updated_price}")
+st.sidebar.write(f"- House types: {updated_types}")
+st.sidebar.write(f"- Forecasted data: {updated_forecast}")
+st.sidebar.markdown("---")
 for p in [cleaned_path, avg_price_path, avg_types_path, forecast_path]:
     if Path(p).exists():
         st.sidebar.download_button(label=f"Download {Path(p).name}", data=Path(p).read_bytes(), file_name=Path(p).name)
