@@ -524,7 +524,7 @@ To evaluate accuracy, we measured prediction error on the test period (post-2021
 ---
                 
 ### 📱 **Contact & Links**
-- Portfolio: https://denisechoo80.wixsite.com/portfolio
+- Email: denisechoo8236@gmail.com
 - GitHub: https://github.com/siteByteside
 """)
 
