@@ -540,7 +540,7 @@ footer_html = """
     <div style="text-align: center; padding-top: 10px;">
         <span style="font-size: 14px; color: gray;">
             Developed by Denise Choo © 2025<br>
-            Collaborated with Felicia Chin
+            Collaborated with Felicia Chin<br>
             Malaysia Housing Forecast Dashboard
         </span>
     </div>
