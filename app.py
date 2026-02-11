@@ -524,8 +524,11 @@ To evaluate accuracy, we measured prediction error on the test period (post-2021
 ---
                 
 ### 📱 **Contact & Links**
+[Author]
 - Email: denisechoo8236@gmail.com
 - GitHub: https://github.com/siteByteside
+[Collaborator]
+- Email: chinzhengyin@gmail.com
 """)
 
 
@@ -536,6 +539,7 @@ footer_html = """
     <div style="text-align: center; padding-top: 10px;">
         <span style="font-size: 14px; color: gray;">
             Developed by Denise Choo © 2025<br>
+            Collaborated with Felicia Chin
             Malaysia Housing Forecast Dashboard
         </span>
     </div>
